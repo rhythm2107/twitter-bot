@@ -1,38 +1,73 @@
+import sqlite3
 from tweety import Twitter
 from tweety.types import HOME_TIMELINE_TYPE_FOR_YOU, HOME_TIMELINE_TYPE_FOLLOWING
 import re
 import time
+import discord_notification
 
-cookies_value = "d_prefs=MjoxLGNvbnNlbnRfdmVyc2lvbjoyLHRleHRfdmVyc2lvbjoxMDAw; kdt=6AiSMptk8kIjrSMo0jixgNIWamG1sWb3y0ZGozJO; lang=en; dnt=1; gt=1777306845054431707; guest_id=v1%3A171257807717069422; _twitter_sess=BAh7CSIKZmxhc2hJQzonQWN0aW9uQ29udHJvbGxlcjo6Rmxhc2g6OkZsYXNo%250ASGFzaHsABjoKQHVzZWR7ADoPY3JlYXRlZF9hdGwrCDqrm72OAToMY3NyZl9p%250AZCIlYzVkYWQ3ZGExMDU3YTdiODNjMDk0ZmMxZjVmMTM1ZTY6B2lkIiUxMzYy%250AZDhmMDNkOTJiYmMzYzUxNWY4MTQwNjc1MWZiNw%253D%253D--51ed1e0b320cbf70b69826c4ccbaff1a2516ee33; auth_token=2a6b194ebd94dd55aa9dec4c5880be3f26cea6f0; ct0=1a0626206c3bcb5b128099fe162a0b15959922311525e5172235c021769bd34c3e5a388172ef5416d9d30ff6621b3905554354358a6ab616c74a64cfde1a38f82a068cc578bf5249e7175945da4ba3b8; twid=u%3D1171793020259373058; att=1-5KjVAqiulK9KA8TwifVgBYN8syrBvOLV6iIMllHk"
+id_list = []
+cookies_value = "d_prefs=MjoxLGNvbnNlbnRfdmVyc2lvbjoyLHRleHRfdmVyc2lvbjoxMDAw; lang=en; gt=1778505775091962322; guest_id=v1%3A171286402257360862; _twitter_sess=BAh7CSIKZmxhc2hJQzonQWN0aW9uQ29udHJvbGxlcjo6Rmxhc2g6OkZsYXNo%250ASGFzaHsABjoKQHVzZWR7ADoPY3JlYXRlZF9hdGwrCA7Tps6OAToMY3NyZl9p%250AZCIlMDVhYTIyMGNlOTE4NzQ0MmJhNzczMzJhNWRjN2Q5MDk6B2lkIiVlNmIy%250AMjY2N2I2NGE0ZDMwODNiNzMyNDk1ZjY4YTk1Yw%253D%253D--f181716dd4dc885166c379892df9fd21724196fa; kdt=S2RG1OTATl9kHpJGi3bNfYWbYJiahmspdeKSK2iI; auth_token=59f0a511212ac5205468aa267f4f0583c60ff337; ct0=520d4edb8c8bcc629504bce13b759361d08e07b2063eff9ce8a75abb3f52f0bf781693d791c4c569939e9e4023669b72f3929ba34c5cbede844b0c2de47b214a40480504345bdd52c696659d468f74e1; twid=u%3D1171793020259373058"
 
+# Log into Twitter
 app = Twitter("session")
 app.load_cookies(cookies_value)
 print(app.me)
 
+def create_id_table():
+    conn = sqlite3.connect('ids_database.db')
+    cursor = conn.cursor()
 
-followings_ids = []
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS unique_ids (
+            id INTEGER PRIMARY KEY,
+            added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
-def fetch_current_followings():
-    users = app.get_user_followings('GalleryPlay')
-    for user in users:
-        followings_ids.append(user.id)
-    print(followings_ids)
+def check_if_id_exists(id):
+    # Connect to SQLite database
+    conn = sqlite3.connect('ids_database.db')
+    cursor = conn.cursor()
 
-def fetch_last_tweet():
-    for id in followings_ids:
-        tweets = app.get_tweets(id)
-        for tweet in tweets:
-            print(tweet)
+    cursor.execute('SELECT id FROM unique_ids WHERE id = ?', (id,))
+    existing_id = cursor.fetchone()
+
+    if existing_id:
+        print("ID already exists in the database.")
+    else:
+        insert_id_into_db(id)
+        print("New ID:", id)
+        return True
+
+    # Close connection
+    conn.close()
+
+def insert_id_into_db(id):
+    conn = sqlite3.connect('ids_database.db')
+    cursor = conn.cursor()
+
+    cursor.execute('''
+            INSERT INTO unique_ids (id)
+            VALUES (?)
+        ''', (id,))
+
+    # Commit changes and close connection
+    conn.commit()
+    conn.close()
 
 def fetch_home_timeline():
     tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
-    print(tweets.tweets.id)
+    for tweet in tweets:  
+        id_list.append(int(tweet.id))
+    #     print(tweet.id, tweet.date, tweet.text, tweet.author, tweet.is_quoted, tweet.is_retweeted, tweet.url, tweet.source)
+    # print(id_list)
 
-start_time = time.time()
+create_id_table()
+fetch_home_timeline()
 
-n = 0
-while True:
-    fetch_home_timeline()
-    n += 1
-    print(f"Loops completed: {n}")
-    time.sleep(15)
+for id in id_list:
+    value = check_if_id_exists(id)
+    if value:
+        discord_notification.send_discord_notification(id)
