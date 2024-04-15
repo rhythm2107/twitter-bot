@@ -72,6 +72,8 @@ def fetch_home_timeline():
         id_dict[tweet.id]['text'] = tweet.text
         id_dict[tweet.id]['author'] = tweet.author
         id_dict[tweet.id]['is_quoted'] = tweet.is_quoted
+        id_dict[tweet.id]['is_retweet'] = tweet.is_retweet
+        id_dict[tweet.id]['is_reply'] = tweet.is_reply
     #     print(tweet.id, tweet.date, tweet.text, tweet.author, tweet.is_quoted, tweet.is_retweeted, tweet.url, tweet.source)
     # print(id_list)
 
@@ -79,30 +81,6 @@ def fetch_home_timeline():
 reset_database()
 create_id_table()
 fetch_home_timeline()
-
-# test_time = 0
-
-# print(id_dict)
-# for key, value in id_dict.items():
-#     print(key, value)
-#     print(value['date'])
-#     test_time = value['date']
-
-# # test_time = test_time.replace(tzinfo=None)
-# time_now = datetime.datetime.utcnow()
-# print('===================')
-# print(time_now)
-# print(test_time)
-
-
-# print(type(time_now))
-# print(type(test_time))
-
-
-# time_difference = time_now - test_time
-# print(time_difference)
-# print(type(time_difference))
-# print(time_difference.total_seconds())
 
 # Add a "if date is within last 2 minutes combined with if id not in databse -> discord notification"
 # thats gonna be the solution to making it ignore older tweets and not spam at the very beginning too much with older stuff
@@ -115,6 +93,9 @@ while True:
         if id_exist:
             time_difference = current_time - value['date']
             if time_difference.total_seconds() <= 120:
-                discord_notification.send_discord_notification(value['url'])
-                time.sleep(1)
+                if value['is_quoted'] == False:
+                    if value['is_retweet'] == False:
+                        if value['is_reply'] == False:
+                            discord_notification.send_discord_notification(value['url'])
+                            time.sleep(1)
     time.sleep(15)
