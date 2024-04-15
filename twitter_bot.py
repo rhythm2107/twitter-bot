@@ -4,6 +4,7 @@ from tweety.types import HOME_TIMELINE_TYPE_FOR_YOU, HOME_TIMELINE_TYPE_FOLLOWIN
 import re
 import time
 import discord_notification
+import discord_statistic
 import os
 import datetime
 
@@ -77,6 +78,9 @@ def fetch_home_timeline():
     #     print(tweet.id, tweet.date, tweet.text, tweet.author, tweet.is_quoted, tweet.is_retweeted, tweet.url, tweet.source)
     # print(id_list)
 
+script_start_time = datetime.datetime.now()
+tweet_count = 0
+
 # Main Code
 reset_database()
 create_id_table()
@@ -86,16 +90,38 @@ fetch_home_timeline()
 # thats gonna be the solution to making it ignore older tweets and not spam at the very beginning too much with older stuff
 
 while True:
-    current_time = datetime.datetime.utcnow()
-    fetch_home_timeline()
-    for key, value in id_dict.items():
-        id_exist = check_if_id_exists(key)
-        if id_exist:
-            time_difference = current_time - value['date']
-            if time_difference.total_seconds() <= 120:
-                if value['is_quoted'] == False:
-                    if value['is_retweet'] == False:
-                        if value['is_reply'] == False:
-                            discord_notification.send_discord_notification(value['url'])
-                            time.sleep(1)
-    time.sleep(15)
+    try:
+        current_time = datetime.datetime.utcnow()
+        fetch_home_timeline()
+        for key, value in id_dict.items():
+            id_exist = check_if_id_exists(key)
+            if id_exist:
+                time_difference = current_time - value['date']
+                if time_difference.total_seconds() <= 120:
+                    if value['is_quoted'] == False:
+                        if value['is_retweet'] == False:
+                            if value['is_reply'] == False:
+                                discord_notification.send_discord_notification(value['url'])
+                                tweet_count += 1
+                                time.sleep(1)
+        time.sleep(15)
+    except KeyboardInterrupt:
+        script_end_time = datetime.datetime.now()
+        duration = script_end_time - script_start_time
+        
+        # Extract days, hours, minutes, and seconds from the duration
+        days = duration.days
+        hours, remainder = divmod(duration.seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        duration_in_sec = duration.total_seconds()
+        tweets_per_min = round(tweet_count / (duration_in_sec / 60), 2)
+
+        if days != 0:
+            duration_print = f"{days} d, {hours} h, {minutes} m, {seconds} s"
+        else:
+            duration_print = f"{hours} h, {minutes} m, {seconds} s"
+        
+        discord_statistic.send_discord_notification(f"Bot stopped.\nRuntime: {duration_print}\nTweet Count: {tweet_count:n}\nTweet/min: {tweets_per_min:n}")
+        break
+
+    
