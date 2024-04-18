@@ -64,17 +64,26 @@ def insert_id_into_db(id):
     conn.commit()
     conn.close()
 def fetch_home_timeline():
-    tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
+    try:
+        tweets = app.get_home_timeline(timeline_type=HOME_TIMELINE_TYPE_FOLLOWING)
+    except:
+        print("Internal Server Error. Sleeping for 10 seconds.")
+        time.sleep(10)
     for tweet in tweets:  
         id_list.append(int(tweet.id))
+        tweet_fx_embed = tweet.url.replace("twitter", "fxtwitter")
         id_dict[tweet.id] = {}
-        id_dict[tweet.id]['url'] = tweet.url
-        id_dict[tweet.id]['date'] = tweet.date.replace(tzinfo=None)
+        id_dict[tweet.id]['url'] = tweet_fx_embed
+        try:
+            id_dict[tweet.id]['date'] = tweet.date.replace(tzinfo=None)
+        except:
+            continue
         id_dict[tweet.id]['text'] = tweet.text
         id_dict[tweet.id]['author'] = tweet.author
         id_dict[tweet.id]['is_quoted'] = tweet.is_quoted
         id_dict[tweet.id]['is_retweet'] = tweet.is_retweet
         id_dict[tweet.id]['is_reply'] = tweet.is_reply
+        print(tweet_fx_embed)
     #     print(tweet.id, tweet.date, tweet.text, tweet.author, tweet.is_quoted, tweet.is_retweeted, tweet.url, tweet.source)
     # print(id_list)
 
