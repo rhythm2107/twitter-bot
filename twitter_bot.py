@@ -10,20 +10,25 @@ import datetime
 
 id_list = []
 id_dict = {}
-cookies_value = "d_prefs=MjoxLGNvbnNlbnRfdmVyc2lvbjoyLHRleHRfdmVyc2lvbjoxMDAw; kdt=S2RG1OTATl9kHpJGi3bNfYWbYJiahmspdeKSK2iI; lang=en; dnt=1; guest_id=v1%3A171319706116288525; gt=1779903600241651920; _twitter_sess=BAh7CSIKZmxhc2hJQzonQWN0aW9uQ29udHJvbGxlcjo6Rmxhc2g6OkZsYXNo%250ASGFzaHsABjoKQHVzZWR7ADoPY3JlYXRlZF9hdGwrCNGhgOKOAToMY3NyZl9p%250AZCIlMzM3MDhlZDIzYzA2NDFkZTViOWI5NDQ5ZDMyNjkyYzM6B2lkIiU0NWE5%250ANTUwNTQ1ZGVjOGFiNDkxMjVhNmUzNTE5YTBhZg%253D%253D--d5e38cccbf4e9eca8df616d29d7961da1f706953; auth_token=14249c18a260d202da0b3e2f3824d5840b895e65; ct0=289ad9a9cbcbe142c076f32d00fcd21d3841787e9485d6ba32b7168190691b657962d322b49d46d2d33c5f82a6efa3172b244b4753944fb87a598396c3effdc1660c5231dbb2fc2396f9b2178f25dd37; twid=u%3D2403922286; att=1-zHg87l7326miiqMmuuqGC876ScfOvaT7zuPWehpj"
+cookies_value = "auth_token=e9c6d077fadb7f53354aee70cd0fec036df4d233; ct0=6fb113011cddadcf13413df8a3a968f4377b3a9aafa97a5637fc2969a00de54bb11432e31cfc50fbd41758914094ea0858869e6ceb60a50518a1564ab2485b77b7373799098e42e854c1660fb860b58b; dnt=1; g_state={\"i_l\":0}; guest_id=v1%3A173211936499429146; guest_id_ads=v1%3A173211936499429146; guest_id_marketing=v1%3A173211936499429146; kdt=qPI7KbtmvUzLygP2aLQYBZcnUAmkhRygSjM2rdHZ; lang=en; night_mode=2; personalization_id=\"v1_BM3XQTcjXg+o/gs4ztYjfA==\"; twid=u%3D2403922286"
 
 # Log into Twitter
 app = Twitter("session")
 app.load_cookies(cookies_value)
 print(app.me)
 
+# Get the directory of the script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct the full path to the database file
+database_file = os.path.join(script_dir, 'ids_database.db')
+
 # Functions
 def reset_database():
-    database_file = 'ids_database.db'
     if os.path.exists(database_file):
         os.remove(database_file)
 def create_id_table():
-    conn = sqlite3.connect('ids_database.db')
+    conn = sqlite3.connect(database_file)
     cursor = conn.cursor()
 
     cursor.execute('''
@@ -36,7 +41,7 @@ def create_id_table():
     conn.close()
 def check_if_id_exists(id):
     # Connect to SQLite database
-    conn = sqlite3.connect('ids_database.db')
+    conn = sqlite3.connect(database_file)
     cursor = conn.cursor()
 
     cursor.execute('SELECT id FROM unique_ids WHERE id = ?', (id,))
@@ -52,7 +57,7 @@ def check_if_id_exists(id):
     # Close connection
     conn.close()
 def insert_id_into_db(id):
-    conn = sqlite3.connect('ids_database.db')
+    conn = sqlite3.connect(database_file)
     cursor = conn.cursor()
 
     cursor.execute('''
@@ -83,9 +88,6 @@ def fetch_home_timeline():
         id_dict[tweet.id]['is_quoted'] = tweet.is_quoted
         id_dict[tweet.id]['is_retweet'] = tweet.is_retweet
         id_dict[tweet.id]['is_reply'] = tweet.is_reply
-        print(tweet_fx_embed)
-    #     print(tweet.id, tweet.date, tweet.text, tweet.author, tweet.is_quoted, tweet.is_retweeted, tweet.url, tweet.source)
-    # print(id_list)
 
 script_start_time = datetime.datetime.now()
 tweet_count = 0
@@ -110,7 +112,10 @@ while True:
                     if value['is_quoted'] == False:
                         if value['is_retweet'] == False:
                             if value['is_reply'] == False:
-                                discord_notification.send_discord_notification(value['url'])
+                                url = value['url']
+                                name = '@' + value['author'].name
+                                message = value['text']
+                                discord_notification.send_discord_notification(name, url, message)
                                 tweet_count += 1
                                 time.sleep(1)
         time.sleep(15)
@@ -132,5 +137,3 @@ while True:
         
         discord_statistic.send_discord_notification(f"Bot stopped.\nRuntime: {duration_print}\nTweet Count: {tweet_count:n}\nTweet/min: {tweets_per_min:n}")
         break
-
-    
